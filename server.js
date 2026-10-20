@@ -6,7 +6,8 @@ const path = require('path');
 const archiver = require('archiver');
 
 const app = express();
-const upload = multer({ dest: 'uploads/' });
+// 1. CHANGED: Upload to /tmp
+const upload = multer({ dest: '/tmp/uploads/' });
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
@@ -31,10 +32,8 @@ const injectPermissions = async (filePath, injection, marker) => {
   if (content.includes(marker)) return; // already injected
 
   if (filePath.endsWith('Info.plist')) {
-    // Insert before the closing </dict> of the root <plist> dict
     content = content.replace(/(<\/dict>\s*<\/plist>)/, `${injection}\n$1`);
   } else {
-    // Insert before <application> in AndroidManifest.xml
     content = content.replace('<application', `${injection}\n<application`);
   }
   await fs.writeFile(filePath, content);
@@ -62,7 +61,8 @@ app.post('/api/convert', upload.single('htmlFile'), async (req, res) => {
   }
 
   const safeName = appName.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-');
-  const workDir = path.join(__dirname, `temp-build-${Date.now()}`);
+  // 2. CHANGED: Build in /tmp
+  const workDir = path.join('/tmp', `temp-build-${Date.now()}`);
   const webDir = path.join(workDir, 'www');
   await fs.ensureDir(webDir);
 
@@ -203,7 +203,8 @@ await Capacitor.Plugins.VoiceRecorder.startRecording();
     await fs.remove(path.join(workDir, 'ios', 'App', 'Pods')).catch(() => {});
 
     // 5. ZIP + download
-    const zipPath = path.join(__dirname, `projects-${Date.now()}.zip`);
+    // 3. CHANGED: Zip in /tmp
+    const zipPath = path.join('/tmp', `projects-${Date.now()}.zip`);
     await makeZip(workDir, zipPath, safeName);
 
     res.download(zipPath, `${safeName}-native.zip`, async () => {
